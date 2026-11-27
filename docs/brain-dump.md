@@ -11,7 +11,7 @@ Tech:
 - Google ADK com OpenAI, modelo gpt-6-luna
 - PostgreSQL
 - DrizzleORM
-- ElevenLabs (transcrição de áudio, scribe_v4_turbo)
+- ElevenLabs (transcrição de áudio, scribe_v3)
 
 Arquitetura:
 - Controllers e Services

@@ -3,6 +3,7 @@ import type {
   ConversationDetail,
   Message,
   Page,
+  WhatsappState,
 } from "./types";
 
 // O navegador chama /api/backend/*; o route handler (app/api/backend/[...path]/route.ts)
@@ -88,3 +89,13 @@ export const setHandoff = (id: string, enabled: boolean) =>
     method: "POST",
     body: { enabled },
   });
+
+// ---- Conexão do WhatsApp (single-tenant: um número) ----
+export const getWhatsapp = () => api<WhatsappState>("/whatsapp");
+export const connectWhatsapp = () => api<WhatsappState>("/whatsapp/connect", { method: "POST", body: {} });
+export const disconnectWhatsapp = () => api<WhatsappState>("/whatsapp/disconnect", { method: "POST", body: {} });
+export const getWhatsappQr = () => api<{ qrcode: string | null }>("/whatsapp/qr");
+export const getLicenseLink = (redirectUri: string) =>
+  api<{ registerUrl: string }>(`/whatsapp/license?redirectUri=${encodeURIComponent(redirectUri)}`);
+export const activateLicense = (code: string) =>
+  api<WhatsappState>("/whatsapp/license", { method: "POST", body: { code } });

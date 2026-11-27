@@ -12,6 +12,7 @@ Ele consome a API do [`ai-atendente-backend`](../ai-atendente-backend) (contrato
 - **Conversa aberta** com balões distintos para **cliente**, **agente** (IA) e **operador** (você), áudio transcrito, mensagens não suportadas, status de envio (`queued` → `sent` / `failed` com o motivo) e histórico paginado.
 - **Handoff** por conversa com um interruptor: ligado, o agente para de responder e você responde pelo campo de texto; desligado, o agente volta.
 - **Tools do agente**: painel "O que o agente fez" (argumentos e resultado) e chips nas mensagens que originaram cada tool.
+- **Conexão do WhatsApp** (`/whatsapp`): o projeto é single-tenant (um número), então não há cadastro nem login de usuários; há um passo a passo para ativar a licença do EvolutionGo, ler o **QR code**, ver o número conectado e desconectar. Um chip na lateral mostra se o número está no ar.
 - **Tempo quase real** por polling de 2 s, tema claro/escuro e layout responsivo (no celular é uma tela por vez).
 
 ## Rodando
@@ -24,13 +25,21 @@ cp .env.example .env.local   # BACKEND_URL e BACKEND_API_TOKEN (os dois são obr
 npm run dev                  # http://localhost:3100
 ```
 
-Abra `http://localhost:3100`: o painel abre direto, sem login. O `BACKEND_API_TOKEN` deve ser o `API_TOKEN` do backend (no Compose local é `dev-token`).
+Abra `http://localhost:3100`: o painel abre direto, sem login. Na primeira vez, clique em **Conectar WhatsApp** e siga o passo a passo (veja abaixo). O `BACKEND_API_TOKEN` deve ser o `API_TOKEN` do backend (no Compose local é `dev-token`).
 
 | Script | O que faz |
 | --- | --- |
 | `npm run dev` | desenvolvimento em `:3100` (a `:3000` é do backend) |
 | `npm run build && npm start` | build de produção em `:3100` |
 | `npm run lint` | ESLint |
+
+## Conectando o WhatsApp (primeira vez)
+
+1. **Licença do EvolutionGo** (uma vez só). O EvolutionGo só funciona com licença ativada. O painel abre o cadastro no site do provedor (gratuito) e, quando você volta, ativa a licença sozinho. Se o provedor mostrar um código em vez de redirecionar, cole-o em "Já tenho o código de ativação".
+2. **Conectar**. O painel pede ao backend para criar a instância e gerar o QR code.
+3. **Ler o QR** no WhatsApp: Configurações → Aparelhos conectados → Conectar um aparelho. A tela muda para "conectado" sozinha.
+
+Para o agente **responder** de verdade, o backend também precisa de chaves reais da OpenAI e da ElevenLabs no `.env` dele (`OPENAI_API_KEY`, `ELEVENLABS_API_KEY`).
 
 ## Como funciona (roteiro para a aula)
 
@@ -42,11 +51,12 @@ src/
 │  └─ (app)/
 │     ├─ layout.tsx                    # casca do painel
 │     ├─ page.tsx                      # "selecione uma conversa"
+│     ├─ whatsapp/page.tsx             # conexão do número (licença → QR → conectado)
 │     └─ conversations/[id]/page.tsx   # uma conversa
 ├─ components/
-│  ├─ app-shell.tsx  conversation-list.tsx
+│  ├─ app-shell.tsx  conversation-list.tsx  whatsapp-chip.tsx  whatsapp-connection.tsx  empty-state.tsx
 │  └─ chat/ chat-view.tsx  message-bubble.tsx  composer.tsx  tools-panel.tsx
-├─ hooks/                              # dados: use-paged, use-conversations, use-messages, use-conversation
+├─ hooks/                              # dados: use-paged, use-conversations, use-messages, use-conversation, use-whatsapp
 └─ lib/                                # api.ts (fetch), types.ts, format.ts
 ```
 

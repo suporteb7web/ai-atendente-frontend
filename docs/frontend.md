@@ -1,6 +1,6 @@
 # Frontend do atendente
 
-O frontend consome a API descrita em `openapi.yaml`. Há um número de WhatsApp e várias conversas, uma por telefone. Não há login de vários operadores: um token compartilhado abre o painel.
+Este repositório é só o backend. O frontend consome a API descrita em `openapi.yaml`. Há um número de WhatsApp e várias conversas, uma por telefone. Não há login de vários operadores: um token compartilhado abre o painel.
 
 ## Base e autenticação
 
@@ -21,7 +21,7 @@ Sem o header, ou com outro token, a resposta é `401`:
 
 `GET /health` e `GET /ready` não usam o token. `/health` só diz que o processo está no ar. `/ready` devolve `200` com `{ "ok": true }` quando Postgres e Redis respondem, e `503` quando um dos dois falha. Use `/ready` no healthcheck de deploy, não para pintar a tela.
 
-Se `CORS_ORIGIN` estiver vazio, o backend não envia cabeçalhos de CORS. Em desenvolvimento, aponte essa variável para a origem do frontend, por exemplo `http://localhost:5173`.
+Se `CORS_ORIGIN` estiver vazio, o backend não envia cabeçalhos de CORS. Em desenvolvimento, aponte essa variável para a origem do frontend, por exemplo `http://localhost:5173`. O frontend deste projeto dispensa isso: ele chama o backend pelo próprio servidor do Next.
 
 ## O que a tela mostra
 
@@ -68,18 +68,18 @@ Não existe cadastro de conversa. A linha nasce quando o cliente manda a primeir
 }
 ```
 
-| Campo               | Como desenhar                                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `author: customer`  | Balão do cliente, à esquerda                                                                               |
-| `author: agent`     | Balão do atendente automático                                                                              |
-| `author: operator`  | Balão do humano, distinto do agente                                                                        |
-| `type: text`        | `body`                                                                                                     |
-| `type: audio`       | `body` é a transcrição. Vale um rótulo discreto de que era áudio. Não há player: o áudio não fica guardado |
-| `type: unsupported` | Mostre o `body`, que é sempre `[mensagem não suportada]`                                                   |
-| `status: stored`    | Mensagem de entrada concluída, ou áudio já transcrito                                                      |
-| `status: queued`    | Saída aceita, ainda não confirmada pelo WhatsApp                                                           |
-| `status: sent`      | Saída confirmada                                                                                           |
-| `status: failed`    | Mostre `failureReason`. A linha continua no histórico                                                      |
+| Campo | Como desenhar |
+|---|---|
+| `author: customer` | Balão do cliente, à esquerda |
+| `author: agent` | Balão do atendente automático |
+| `author: operator` | Balão do humano, distinto do agente |
+| `type: text` | `body` |
+| `type: audio` | `body` é a transcrição. Vale um rótulo discreto de que era áudio. Não há player: o áudio não fica guardado |
+| `type: unsupported` | Mostre o `body`, que é sempre `[mensagem não suportada]` |
+| `status: stored` | Mensagem de entrada concluída, ou áudio já transcrito |
+| `status: queued` | Saída aceita, ainda não confirmada pelo WhatsApp |
+| `status: sent` | Saída confirmada |
+| `status: failed` | Mostre `failureReason`. A linha continua no histórico |
 
 `sent` só existe em saída. Entrada fica `stored`, ou `failed` quando a transcrição, o agente ou o limite de tools não conclui.
 
@@ -152,6 +152,23 @@ O handoff é por conversa.
 
 Um interruptor ao lado do nome da conversa é o controle certo. Quando `handoff` está ligado, deixe isso visível também na lista.
 
+## Conectar o WhatsApp
+
+O projeto é **single-tenant**: um EvolutionGo, uma instância, um número. Não há cadastro nem login de usuários. O que o painel precisa oferecer é a **conexão do número**, por estas rotas (todas com o Bearer do operador):
+
+| Rota | Para quê |
+| --- | --- |
+| `GET /whatsapp` | `{ status, name, phone }`. Polling de 3 s enquanto a tela de conexão estiver aberta |
+| `POST /whatsapp/connect` | Cria a instância se faltar e começa a gerar o QR |
+| `GET /whatsapp/qr` | `{ qrcode }`: data URL PNG para exibir em `<img>`, ou `null` enquanto não há QR |
+| `POST /whatsapp/disconnect` | Faz logout do número ou cancela um QR pendente |
+| `GET /whatsapp/license?redirectUri=` | Link de cadastro da licença do EvolutionGo |
+| `POST /whatsapp/license` `{ code }` | Ativa a licença com o `code` que o provedor devolveu |
+
+`status` percorre: `license_required` → `not_created` → `disconnected` → `connecting` (QR na tela) → `connected`. `unavailable` quer dizer que o EvolutionGo não respondeu.
+
+A licença do EvolutionGo exige cadastro numa conta do provedor (uma vez). O painel manda o operador para o link de cadastro; o provedor volta para `redirectUri?code=...` e o painel chama `POST /whatsapp/license`. Erros: `409` (conectar sem licença), `400` (code inválido), `502` (EvolutionGo fora do ar).
+
 ## Atualização
 
 Não há websocket nem webhook para o browser. Faça polling enquanto a conversa estiver aberta e a lista estiver visível. Um intervalo de 2 segundos é suficiente para um número só.
@@ -168,12 +185,12 @@ Ao paginar para cima, não jogue fora as páginas antigas já carregadas. Junte 
 
 O corpo de erro é sempre `{ "error": string }`.
 
-| Status | Onde                                          | O que fazer                                                    |
-| ------ | --------------------------------------------- | -------------------------------------------------------------- |
-| 401    | qualquer rota de operador                     | Token ausente ou errado. Peça o token de novo e pare de pollar |
-| 404    | `:id` inválido ou conversa que não existe     | Tire a conversa da tela                                        |
-| 400    | texto vazio, texto longo, `limit` ou `cursor` | Mostre a mensagem e não reenvie igual                          |
-| 503    | `/ready`                                      | Fora do fluxo da tela                                          |
+| Status | Onde | O que fazer |
+|---|---|---|
+| 401 | qualquer rota de operador | Token ausente ou errado. Peça o token de novo e pare de pollar |
+| 404 | `:id` inválido ou conversa que não existe | Tire a conversa da tela |
+| 400 | texto vazio, texto longo, `limit` ou `cursor` | Mostre a mensagem e não reenvie igual |
+| 503 | `/ready` | Fora do fluxo da tela |
 
 Não existe endpoint para editar prompt, cadastrar tool, disparar mensagem ativa, mandar áudio, imagem ou documento, nem para ler grupo ou recibo.
 

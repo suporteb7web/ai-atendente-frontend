@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { WhatsappChip } from "@/components/whatsapp-chip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,6 +44,8 @@ export function ConversationList() {
         </div>
         <ThemeToggle />
       </header>
+
+      <WhatsappChip />
 
       <div className="border-b px-3 py-2.5">
         <div className="relative">

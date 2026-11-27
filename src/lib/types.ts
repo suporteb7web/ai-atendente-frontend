@@ -48,3 +48,17 @@ export type Page<T> = {
   items: T[];
   nextCursor: string | null;
 };
+
+export type WhatsappStatus =
+  | "unavailable"
+  | "license_required"
+  | "not_created"
+  | "disconnected"
+  | "connecting"
+  | "connected";
+
+export type WhatsappState = {
+  status: WhatsappStatus;
+  name: string | null;
+  phone: string | null;
+};

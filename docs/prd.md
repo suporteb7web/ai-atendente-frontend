@@ -31,7 +31,7 @@ Não implementar: multi-tenancy, várias instâncias, disparo ativo, cadastro de
 - PostgreSQL + DrizzleORM + drizzle-kit
 - Redis + BullMQ
 - Google ADK (`@google/adk`) como runtime do agente, com a OpenAI no modelo `gpt-6-luna`
-- ElevenLabs Speech to Text, modelo `scribe_v4_turbo`
+- ElevenLabs Speech to Text, modelo `scribe_v3`
 - Vitest e Supertest
 - Docker Compose sobe `api`, `postgres` e `redis`
 - Pino para log. Log leva id de conversa e id de mensagem. Não logar corpo de mensagem, transcrição, áudio nem segredo
@@ -102,7 +102,7 @@ Opcionais, com default:
 |---|---|
 | `PORT` | `3000` |
 | `OPENAI_MODEL` | `gpt-6-luna` |
-| `ELEVENLABS_STT_MODEL` | `scribe_v4_turbo` |
+| `ELEVENLABS_STT_MODEL` | `scribe_v3` |
 | `ELEVENLABS_LANGUAGE_CODE` | `por` |
 | `AGENT_HISTORY_LIMIT` | `40` |
 | `AGENT_MAX_TOOL_ROUNDS` | `5` |
@@ -276,7 +276,7 @@ Estado por conversa, coluna `handoff`.
 `POST https://api.elevenlabs.io/v1/speech-to-text`, multipart:
 
 - `file`: bytes do áudio, com o mimetype do evento (`audio/ogg` quando o Evolution indicar opus)
-- `model_id`: `ELEVENLABS_STT_MODEL` (`scribe_v4_turbo`)
+- `model_id`: `ELEVENLABS_STT_MODEL` (`scribe_v3`)
 - `language_code`: `ELEVENLABS_LANGUAGE_CODE`
 - `tag_audio_events`: `false`
 
@@ -415,7 +415,7 @@ Cada fase termina com seus testes verdes antes da próxima.
 5. Fila outbound, adapter do Evolution e `POST /conversations/:id/messages`.
 6. Handoff na pipeline e `POST /conversations/:id/handoff`.
 7. AgentPort com ADK, OpenAI `gpt-6-luna`, prompts, `request_handoff`, `current_time`, gravação das tools e resposta automática.
-8. Áudio via ElevenLabs `scribe_v4_turbo` e mensagens não suportadas.
+8. Áudio via ElevenLabs `scribe_v3` e mensagens não suportadas.
 9. `openapi.yaml` cobrindo a API do operador e o webhook.
 
 ## Pronto quando

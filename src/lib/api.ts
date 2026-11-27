@@ -1,5 +1,3 @@
-import { toast } from "sonner";
-import { clearToken, getToken } from "./token";
 import type {
   Conversation,
   ConversationDetail,
@@ -7,7 +5,8 @@ import type {
   Page,
 } from "./types";
 
-// O navegador chama /api/backend/*; o Next repassa para o backend (next.config.ts).
+// O navegador chama /api/backend/*; o route handler (app/api/backend/[...path]/route.ts)
+// repassa para o backend e adiciona o token no servidor.
 const BASE = "/api/backend";
 
 export class ApiError extends Error {
@@ -21,15 +20,13 @@ export class ApiError extends Error {
 
 export async function api<T>(
   path: string,
-  init?: { method?: "GET" | "POST"; body?: unknown; token?: string },
+  init?: { method?: "GET" | "POST"; body?: unknown },
 ): Promise<T> {
-  const token = init?.token ?? getToken();
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       method: init?.method ?? "GET",
       headers: {
-        Authorization: `Bearer ${token ?? ""}`,
         ...(init?.body !== undefined && { "Content-Type": "application/json" }),
       },
       body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
@@ -40,16 +37,16 @@ export async function api<T>(
   }
 
   if (!res.ok) {
-    // 401: token ausente/errado. Limpar o token volta para a tela de login e
-    // para o polling.
-    if (res.status === 401 && init?.token === undefined) {
-      clearToken();
-      toast.error("Token recusado pelo backend. Entre novamente.", { id: "unauthorized" });
-    }
     const data = (await res.json().catch(() => null)) as {
       error?: string;
     } | null;
-    throw new ApiError(res.status, data?.error ?? `Erro ${res.status}`);
+    // 401 aqui = o backend recusou o BACKEND_API_TOKEN do servidor do frontend.
+    throw new ApiError(
+      res.status,
+      res.status === 401
+        ? "O backend recusou o token. Confira BACKEND_API_TOKEN no .env.local."
+        : (data?.error ?? `Erro ${res.status}`),
+    );
   }
   return res.json() as Promise<T>;
 }
@@ -91,7 +88,3 @@ export const setHandoff = (id: string, enabled: boolean) =>
     method: "POST",
     body: { enabled },
   });
-
-/** Testa um token numa rota protegida sem guardá-lo. Lança ApiError(401) se for recusado. */
-export const checkToken = (token: string) =>
-  api<Page<Conversation>>("/conversations?limit=1", { token });

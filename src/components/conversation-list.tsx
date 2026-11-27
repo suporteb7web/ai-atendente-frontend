@@ -1,10 +1,9 @@
 "use client";
 
-import { Bot, LogOut, MessageCircleOff, Search, UserRound } from "lucide-react";
+import { Bot, MessageCircleOff, Search, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useSWRConfig } from "swr";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConversations } from "@/hooks/use-conversations";
 import { displayName, formatListDate, formatPhone } from "@/lib/format";
-import { clearToken } from "@/lib/token";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +18,6 @@ const PREFIX = { customer: "", agent: "Agente: ", operator: "Você: " } as const
 
 export function ConversationList() {
   const { id: activeId } = useParams<{ id?: string }>();
-  const { mutate } = useSWRConfig();
   const { items, isLoading, error, hasMore, loadMore, loadingMore } = useConversations();
   const [query, setQuery] = useState("");
 
@@ -31,11 +28,6 @@ export function ConversationList() {
       (c) => (c.pushName ?? "").toLowerCase().includes(q) || c.phone.includes(q.replace(/\D/g, "") || "\0"),
     );
   }, [items, query]);
-
-  function logout() {
-    clearToken();
-    mutate(() => true, undefined, { revalidate: false }); // limpa o cache do SWR
-  }
 
   return (
     <>
@@ -50,9 +42,6 @@ export function ConversationList() {
           </p>
         </div>
         <ThemeToggle />
-        <Button variant="ghost" size="icon" aria-label="Sair" onClick={logout}>
-          <LogOut className="size-4" />
-        </Button>
       </header>
 
       <div className="border-b px-3 py-2.5">

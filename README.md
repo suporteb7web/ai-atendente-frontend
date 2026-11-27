@@ -20,11 +20,11 @@ Pré-requisitos: Node 20+ e o backend no ar em `http://localhost:3000` (`docker 
 
 ```bash
 npm install
-cp .env.example .env.local   # BACKEND_URL=http://localhost:3000
+cp .env.example .env.local   # BACKEND_URL e BACKEND_API_TOKEN (os dois são obrigatórios)
 npm run dev                  # http://localhost:3100
 ```
 
-Abra `http://localhost:3100` e entre com o **`API_TOKEN` do backend** (no Compose local é `dev-token`).
+Abra `http://localhost:3100`: o painel abre direto, sem login. O `BACKEND_API_TOKEN` deve ser o `API_TOKEN` do backend (no Compose local é `dev-token`).
 
 | Script | O que faz |
 | --- | --- |
@@ -38,22 +38,25 @@ Abra `http://localhost:3100` e entre com o **`API_TOKEN` do backend** (no Compos
 src/
 ├─ app/
 │  ├─ layout.tsx                       # fontes, tema, toasts
+│  ├─ api/backend/[...path]/route.ts   # proxy para o backend (injeta o token no servidor)
 │  └─ (app)/
-│     ├─ layout.tsx                    # portão: sem token → login, com token → painel
+│     ├─ layout.tsx                    # casca do painel
 │     ├─ page.tsx                      # "selecione uma conversa"
 │     └─ conversations/[id]/page.tsx   # uma conversa
 ├─ components/
-│  ├─ login-screen.tsx  app-shell.tsx  conversation-list.tsx
+│  ├─ app-shell.tsx  conversation-list.tsx
 │  └─ chat/ chat-view.tsx  message-bubble.tsx  composer.tsx  tools-panel.tsx
 ├─ hooks/                              # dados: use-paged, use-conversations, use-messages, use-conversation
-└─ lib/                                # api.ts (fetch), token.ts, types.ts, format.ts
+└─ lib/                                # api.ts (fetch), types.ts, format.ts
 ```
 
-### 1. Proxy em vez de CORS
-O backend não envia cabeçalhos de CORS (`CORS_ORIGIN` vazio). Em vez de alterá-lo, o `next.config.ts` faz um **rewrite**: o navegador chama `/api/backend/*` (mesma origem) e o Next repassa para `BACKEND_URL`. O header `Authorization` segue junto.
+### 1. Proxy no servidor: sem CORS e sem token no navegador
+O backend não envia cabeçalhos de CORS (`CORS_ORIGIN` vazio) e exige `Authorization: Bearer`. Em vez de alterá-lo, o **route handler** `app/api/backend/[...path]/route.ts` recebe as chamadas do navegador em `/api/backend/*` (mesma origem), lê `BACKEND_API_TOKEN` do ambiente **no servidor**, adiciona o `Bearer` e repassa para `BACKEND_URL`. O token nunca é enviado ao navegador nem entra no código versionado.
 
-### 2. Token fora do código
-Não há login de vários operadores: um token compartilhado abre o painel. Ele é digitado na tela de entrada, **validado numa rota protegida antes de ser guardado** e fica no `localStorage` (`lib/token.ts`, via `useSyncExternalStore`). Qualquer `401` apaga o token, mostra um aviso e volta ao login, o que também interrompe o polling.
+> Como não há login, qualquer pessoa que alcance o frontend opera o painel. Para um deploy real, coloque autenticação na frente.
+
+### 2. Erros de configuração são claros
+Sem `BACKEND_API_TOKEN` o proxy responde `500` dizendo o que falta; token errado (`401` do backend) e backend fora do ar (`502`) também viram mensagens na tela.
 
 ### 3. Polling com SWR (`hooks/`)
 A cada 2 s refazemos: a lista, a primeira página de mensagens e o detalhe da conversa (handoff + tools recentes). `usePaged` implementa o padrão do doc do backend:
@@ -67,7 +70,7 @@ A cada 2 s refazemos: a lista, a primeira página de mensagens e o detalhe da co
 - O interruptor chama `POST /conversations/:id/handoff`, atualiza a tela de forma otimista e o refetch confirma o estado real (inclusive quando o **agente** liga o handoff sozinho com `request_handoff`).
 
 ### 5. Tratamento de erros (tabela do doc)
-`401` → login · `404` → sai da conversa · `400` → toast com a mensagem e o texto fica no campo · falha de rede → mensagem clara.
+`401` → mensagem pedindo para conferir o `BACKEND_API_TOKEN` · `404` → sai da conversa · `400` → toast com a mensagem e o texto fica no campo · falha de rede → mensagem clara.
 
 ## Decisões de simplicidade
 
